@@ -34,6 +34,7 @@ function App() {
         fechaLimite: t.fecha_limite,
         estado: t.estado,
         creadorRole: t.creador_role,
+        creadorNombre: t.creador_nombre,
         asignadoA: t.asignado_a,
         fechaReprogramacion: t.fecha_reprogramacion || '',
         ejecutado: t.ejecutado
@@ -65,11 +66,19 @@ function App() {
   }
 
   const visibleTasks = tasks.filter(task => {
-    if (currentUser.rol === 'Jefaturas') {
-      return task.creadorRole === 'Jefaturas' || task.asignadoA === 'Jefaturas';
-    } else {
-      return task.asignadoA === 'Administrativos' || task.asignadoA === currentUser.nombre;
-    }
+    // Si la tarea está asignada específicamente a mí, siempre la veo
+    if (task.asignadoA === currentUser.nombre) return true;
+
+    // Si alguien se asignó la tarea a sí mismo (tarea privada) y yo no soy esa persona, no la veo
+    if (task.asignadoA === task.creadorNombre) return false;
+
+    // Las Jefaturas pueden visualizar todas las demás tareas (asignadas a terceros no privados)
+    if (currentUser.rol === 'Jefaturas') return true;
+
+    // Compatibilidad retroactiva: si está asignada a mi rol general
+    if (task.asignadoA === currentUser.rol) return true;
+
+    return false;
   });
 
   return (
@@ -84,7 +93,7 @@ function App() {
 
         <div className="planner-grid">
           <div className="form-column">
-            <TaskForm userRole={currentUser.rol} fetchTasks={fetchTasks} />
+            <TaskForm currentUser={currentUser} fetchTasks={fetchTasks} />
           </div>
           <div className="table-column">
             <TaskTable visibleTasks={visibleTasks} fetchTasks={fetchTasks} />

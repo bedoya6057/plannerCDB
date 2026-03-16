@@ -2,31 +2,31 @@ import React, { useState, useEffect } from 'react';
 import { PlusCircle } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 
-export default function TaskForm({ userRole, fetchTasks }) {
+export default function TaskForm({ currentUser, fetchTasks }) {
     const [tarea, setTarea] = useState('');
     const [fechaLimite, setFechaLimite] = useState('');
     const [estado, setEstado] = useState('Pendiente');
-    const [asignadoA, setAsignadoA] = useState(userRole === 'Jefaturas' ? 'Administrativos' : userRole);
+    const [asignadoA, setAsignadoA] = useState(currentUser.nombre);
     const [loading, setLoading] = useState(false);
-    const [adminUsers, setAdminUsers] = useState([]);
+    const [assignableUsers, setAssignableUsers] = useState([]);
 
     useEffect(() => {
-        setAsignadoA(userRole === 'Jefaturas' ? 'Administrativos' : userRole);
-        if (userRole === 'Jefaturas') {
-            fetchAdminUsers();
+        setAsignadoA(currentUser.nombre);
+        if (currentUser.rol === 'Jefaturas') {
+            fetchUsersForDropdown();
         }
-    }, [userRole]);
+    }, [currentUser]);
 
-    const fetchAdminUsers = async () => {
+    const fetchUsersForDropdown = async () => {
         const { data, error } = await supabase
             .from('usuarios')
-            .select('nombre')
-            .eq('rol', 'Administrativos');
+            .select('nombre, rol')
+            .order('rol');
         
         if (error) {
-            console.error('Error fetching admin users:', error);
+            console.error('Error fetching users:', error);
         } else {
-            setAdminUsers(data);
+            setAssignableUsers(data);
         }
     };
 
@@ -42,7 +42,8 @@ export default function TaskForm({ userRole, fetchTasks }) {
                     tarea,
                     fecha_limite: fechaLimite,
                     estado,
-                    creador_role: userRole,
+                    creador_role: currentUser.rol,
+                    creador_nombre: currentUser.nombre,
                     asignado_a: asignadoA,
                     ejecutado: false
                 }
@@ -59,7 +60,7 @@ export default function TaskForm({ userRole, fetchTasks }) {
         setTarea('');
         setFechaLimite('');
         setEstado('Pendiente');
-        setAsignadoA(userRole === 'Jefaturas' ? 'Administrativos' : userRole);
+        setAsignadoA(currentUser.nombre);
         fetchTasks();
     };
 
@@ -79,15 +80,15 @@ export default function TaskForm({ userRole, fetchTasks }) {
                     />
                 </div>
 
-                {userRole === 'Jefaturas' && (
+                {currentUser.rol === 'Jefaturas' && (
                     <div className="form-group">
                         <label>Asignar a</label>
                         <select value={asignadoA} onChange={(e) => setAsignadoA(e.target.value)} disabled={loading}>
-                            <option value="Jefaturas">Jefaturas (Yo)</option>
+                            <option value="Jefaturas">Jefaturas (General)</option>
                             <option value="Administrativos">Administrativos (General)</option>
-                            {adminUsers.map(user => (
+                            {assignableUsers.map(user => (
                                 <option key={user.nombre} value={user.nombre}>
-                                    {user.nombre}
+                                    {user.nombre} ({user.rol})
                                 </option>
                             ))}
                         </select>
