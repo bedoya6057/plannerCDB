@@ -6,12 +6,29 @@ export default function TaskForm({ userRole, fetchTasks }) {
     const [tarea, setTarea] = useState('');
     const [fechaLimite, setFechaLimite] = useState('');
     const [estado, setEstado] = useState('Pendiente');
-    const [asignadoA, setAsignadoA] = useState(userRole);
+    const [asignadoA, setAsignadoA] = useState(userRole === 'Jefaturas' ? 'Administrativos' : userRole);
     const [loading, setLoading] = useState(false);
+    const [adminUsers, setAdminUsers] = useState([]);
 
     useEffect(() => {
-        setAsignadoA(userRole);
+        setAsignadoA(userRole === 'Jefaturas' ? 'Administrativos' : userRole);
+        if (userRole === 'Jefaturas') {
+            fetchAdminUsers();
+        }
     }, [userRole]);
+
+    const fetchAdminUsers = async () => {
+        const { data, error } = await supabase
+            .from('usuarios')
+            .select('nombre')
+            .eq('rol', 'Administrativos');
+        
+        if (error) {
+            console.error('Error fetching admin users:', error);
+        } else {
+            setAdminUsers(data);
+        }
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -26,7 +43,7 @@ export default function TaskForm({ userRole, fetchTasks }) {
                     fecha_limite: fechaLimite,
                     estado,
                     creador_role: userRole,
-                    asignado_a: userRole === 'Jefaturas' ? asignadoA : 'Administrativos',
+                    asignado_a: asignadoA,
                     ejecutado: false
                 }
             ]);
@@ -42,7 +59,7 @@ export default function TaskForm({ userRole, fetchTasks }) {
         setTarea('');
         setFechaLimite('');
         setEstado('Pendiente');
-        setAsignadoA(userRole);
+        setAsignadoA(userRole === 'Jefaturas' ? 'Administrativos' : userRole);
         fetchTasks();
     };
 
@@ -67,7 +84,12 @@ export default function TaskForm({ userRole, fetchTasks }) {
                         <label>Asignar a</label>
                         <select value={asignadoA} onChange={(e) => setAsignadoA(e.target.value)} disabled={loading}>
                             <option value="Jefaturas">Jefaturas (Yo)</option>
-                            <option value="Administrativos">Administrativos</option>
+                            <option value="Administrativos">Administrativos (General)</option>
+                            {adminUsers.map(user => (
+                                <option key={user.nombre} value={user.nombre}>
+                                    {user.nombre}
+                                </option>
+                            ))}
                         </select>
                     </div>
                 )}

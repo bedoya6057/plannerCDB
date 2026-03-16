@@ -68,7 +68,7 @@ function App() {
     if (currentUser.rol === 'Jefaturas') {
       return task.creadorRole === 'Jefaturas' || task.asignadoA === 'Jefaturas';
     } else {
-      return task.asignadoA === 'Administrativos';
+      return task.asignadoA === 'Administrativos' || task.asignadoA === currentUser.nombre;
     }
   });
 
