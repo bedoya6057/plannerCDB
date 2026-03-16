@@ -8,7 +8,10 @@ import Login from './components/Login';
 import { supabase } from './supabaseClient';
 
 function App() {
-  const [currentUser, setCurrentUser] = useState(null);
+  const [currentUser, setCurrentUser] = useState(() => {
+    const savedUser = localStorage.getItem('cdb_user');
+    return savedUser ? JSON.parse(savedUser) : null;
+  });
   const [tasks, setTasks] = useState([]);
   const [notes, setNotes] = useState([]);
 
@@ -18,6 +21,16 @@ function App() {
       fetchNotes();
     }
   }, [currentUser]);
+
+  const handleLogin = (user) => {
+    localStorage.setItem('cdb_user', JSON.stringify(user));
+    setCurrentUser(user);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('cdb_user');
+    setCurrentUser(null);
+  };
 
   const fetchTasks = async () => {
     const { data, error } = await supabase
@@ -62,7 +75,7 @@ function App() {
   };
 
   if (!currentUser) {
-    return <Login onLogin={setCurrentUser} />;
+    return <Login onLogin={handleLogin} />;
   }
 
   const visibleTasks = tasks.filter(task => {
@@ -83,7 +96,7 @@ function App() {
 
   return (
     <>
-      <Navbar user={currentUser} onLogout={() => setCurrentUser(null)} />
+      <Navbar user={currentUser} onLogout={handleLogout} />
 
       <main className="container main-content">
         <div className="section-header">
