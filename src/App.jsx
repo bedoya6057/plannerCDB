@@ -85,7 +85,10 @@ function App() {
     // Si alguien se asignó la tarea a sí mismo (tarea privada) y yo no soy esa persona, no la veo
     if (task.asignadoA === task.creadorNombre) return false;
 
-    // Las Jefaturas pueden visualizar todas las demás tareas (asignadas a terceros no privados)
+    // dcarreon solo ve sus tareas (y las ve en el resumen global), ignorar rol Jefatura para ella
+    if (currentUser.email === 'dcarreon@cdb.com') return false;
+
+    // Las otras Jefaturas pueden visualizar todas las demás tareas (asignadas a terceros no privados)
     if (currentUser.rol === 'Jefaturas') return true;
 
     // Compatibilidad retroactiva: si está asignada a mi rol general
