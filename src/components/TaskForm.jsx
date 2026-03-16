@@ -5,28 +5,27 @@ import { supabase } from '../supabaseClient';
 export default function TaskForm({ currentUser, fetchTasks }) {
     const [tarea, setTarea] = useState('');
     const [fechaLimite, setFechaLimite] = useState('');
-    const [estado, setEstado] = useState('Pendiente');
     const [asignadoA, setAsignadoA] = useState(currentUser.nombre);
     const [loading, setLoading] = useState(false);
     const [assignableUsers, setAssignableUsers] = useState([]);
+    const [adminConnections, setAdminConnections] = useState([]);
 
     useEffect(() => {
         setAsignadoA(currentUser.nombre);
-        if (currentUser.rol === 'Jefaturas') {
-            fetchUsersForDropdown();
-        }
+        fetchUsersData();
     }, [currentUser]);
 
-    const fetchUsersForDropdown = async () => {
+    const fetchUsersData = async () => {
         const { data, error } = await supabase
             .from('usuarios')
-            .select('nombre, rol')
+            .select('nombre, rol, ultima_conexion')
             .order('rol');
         
         if (error) {
             console.error('Error fetching users:', error);
         } else {
             setAssignableUsers(data);
+            setAdminConnections(data.filter(u => u.rol === 'Administrativos'));
         }
     };
 
@@ -41,7 +40,7 @@ export default function TaskForm({ currentUser, fetchTasks }) {
                 {
                     tarea,
                     fecha_limite: fechaLimite,
-                    estado,
+                    estado: 'Pendiente',
                     creador_role: currentUser.rol,
                     creador_nombre: currentUser.nombre,
                     asignado_a: asignadoA,
@@ -59,7 +58,6 @@ export default function TaskForm({ currentUser, fetchTasks }) {
 
         setTarea('');
         setFechaLimite('');
-        setEstado('Pendiente');
         setAsignadoA(currentUser.nombre);
         fetchTasks();
     };
@@ -106,13 +104,20 @@ export default function TaskForm({ currentUser, fetchTasks }) {
                     />
                 </div>
 
-                <div className="form-group">
-                    <label>Estado Inicial</label>
-                    <select value={estado} onChange={(e) => setEstado(e.target.value)} disabled={loading}>
-                        <option value="Pendiente">Pendiente</option>
-                        <option value="En Proceso">En Proceso</option>
-                        <option value="Aprobación">Aprobación</option>
-                    </select>
+                <div className="form-group connection-info-group">
+                    <label>Última Conexión (Administrativos)</label>
+                    <div className="connection-list">
+                        {adminConnections.map(user => (
+                            <div key={user.nombre} className="connection-item">
+                                <span className="conn-name">{user.nombre}</span>
+                                <span className="conn-time">
+                                    {user.ultima_conexion 
+                                        ? new Date(user.ultima_conexion).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }) 
+                                        : 'Nunca'}
+                                </span>
+                            </div>
+                        ))}
+                    </div>
                 </div>
 
                 <button type="submit" className="btn btn-primary flex-center" disabled={loading}>

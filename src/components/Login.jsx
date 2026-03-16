@@ -25,6 +25,12 @@ export default function Login({ onLogin }) {
                 throw new Error('Credenciales incorrectas');
             }
 
+            // Update last connection time
+            await supabase
+                .from('usuarios')
+                .update({ ultima_conexion: new Date().toISOString() })
+                .eq('id', data.id);
+
             onLogin(data);
         } catch (err) {
             setError('Correo o contraseña incorrectos. Por favor, intenta de nuevo.');
