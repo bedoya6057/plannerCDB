@@ -24,7 +24,8 @@ export const getVigenciaStatus = (fechaLimite) => {
 
 export default function TaskTable({ currentUser, allTasks, visibleTasks, fetchTasks }) {
     const [loadingIds, setLoadingIds] = useState(new Set());
-    const [filterState, setFilterState] = useState('Pendientes'); // 'Pendientes' or 'Ejecutados'
+    const [viewMode, setViewMode] = useState('Personal'); // 'Personal' or 'Global'
+    const [statusFilter, setStatusFilter] = useState('Pendientes'); // 'Pendientes' or 'Ejecutados'
 
     const toggleEjecutado = async (id, currentStatus) => {
         setLoadingIds(prev => new Set(prev).add(id));
@@ -74,14 +75,18 @@ export default function TaskTable({ currentUser, allTasks, visibleTasks, fetchTa
 
     let contentToRender;
 
-    if (filterState === 'Resumen Global' && isDcarreon) {
+    if (viewMode === 'Global' && isDcarreon) {
         // --- GLOBAL SUMMARY VIEW ---
         
-        // 1. Get all pending tasks
-        const pendingTasks = (allTasks || []).filter(task => !task.ejecutado);
+        // 1. Get tasks matching statusFilter
+        const filteredGlobalTasks = (allTasks || []).filter(task => {
+            if (statusFilter === 'Pendientes') return !task.ejecutado;
+            if (statusFilter === 'Ejecutados') return task.ejecutado;
+            return true;
+        });
 
         // 2. Group by asignadoA
-        const grouped = pendingTasks.reduce((acc, task) => {
+        const grouped = filteredGlobalTasks.reduce((acc, task) => {
             const assignee = task.asignadoA || 'Sin Asignar';
             if (!acc[assignee]) acc[assignee] = [];
             acc[assignee].push(task);
@@ -89,25 +94,34 @@ export default function TaskTable({ currentUser, allTasks, visibleTasks, fetchTa
         }, {});
 
         // 3. Render grouped tasks
-        let globalGrandTotals = { vencido: 0, porVencer: 0, vigente: 0 };
+        let globalGrandTotals = { vencido: 0, porVencer: 0, vigente: 0, ejecutado: 0 };
         
         const summaryNodes = Object.keys(grouped).sort().map(assignee => {
             const tasksUser = grouped[assignee];
-            let userTotals = { vencido: 0, porVencer: 0, vigente: 0 };
+            let userTotals = { vencido: 0, porVencer: 0, vigente: 0, ejecutado: 0 };
 
             const taskRows = tasksUser.map(task => {
                 const vigenciaInfo = getVigenciaStatus(task.fechaLimite);
-                if (vigenciaInfo.text === 'Vencido') userTotals.vencido++;
-                else if (vigenciaInfo.text === 'Por vencer') userTotals.porVencer++;
-                else userTotals.vigente++;
+                
+                if (task.ejecutado) {
+                    userTotals.ejecutado++;
+                } else {
+                    if (vigenciaInfo.text === 'Vencido') userTotals.vencido++;
+                    else if (vigenciaInfo.text === 'Por vencer') userTotals.porVencer++;
+                    else userTotals.vigente++;
+                }
 
                 return (
-                    <tr key={task.id} className="row-resumen" style={{ opacity: loadingIds.has(task.id) ? 0.5 : 1 }}>
+                    <tr key={task.id} className={task.ejecutado ? 'row-ejecutado row-resumen' : 'row-resumen'} style={{ opacity: loadingIds.has(task.id) ? 0.5 : 1 }}>
                         <td className="col-vigencia">
-                            <span className={`status-badge ${vigenciaInfo.className}`} style={{ backgroundColor: `var(--${vigenciaInfo.className}-bg)`, color: `var(--${vigenciaInfo.className})` }}>
-                                {vigenciaInfo.text === 'Vencido' ? <Clock size={12} className="icon-mr" /> : null}
-                                {vigenciaInfo.text}
-                            </span>
+                            {task.ejecutado ? (
+                                <span className="status-badge" style={{ backgroundColor: 'var(--status-ejecutado)', color: 'white' }}>Finalizado</span>
+                            ) : (
+                                <span className={`status-badge ${vigenciaInfo.className}`} style={{ backgroundColor: `var(--${vigenciaInfo.className}-bg)`, color: `var(--${vigenciaInfo.className})` }}>
+                                    {vigenciaInfo.text === 'Vencido' ? <Clock size={12} className="icon-mr" /> : null}
+                                    {vigenciaInfo.text}
+                                </span>
+                            )}
                         </td>
                         <td className="col-tarea">{task.tarea}</td>
                         <td className="col-date">{task.fechaLimite}</td>
@@ -123,10 +137,11 @@ export default function TaskTable({ currentUser, allTasks, visibleTasks, fetchTa
             globalGrandTotals.vencido += userTotals.vencido;
             globalGrandTotals.porVencer += userTotals.porVencer;
             globalGrandTotals.vigente += userTotals.vigente;
+            globalGrandTotals.ejecutado += userTotals.ejecutado;
 
             return (
                 <div key={assignee} className="user-summary-group">
-                    <h4 className="user-summary-header">Tareas de {assignee}</h4>
+                    <h4 className="user-summary-header">Tareas de {assignee} ({tasksUser.length})</h4>
                     <div className="table-responsive">
                         <table className="task-table summary-table">
                             <thead>
@@ -145,9 +160,15 @@ export default function TaskTable({ currentUser, allTasks, visibleTasks, fetchTa
                     </div>
                     <div className="user-summary-metrics">
                         <strong>Resumen del Usuario:</strong>
-                        <span className="metric-badge status-vencido" style={{ backgroundColor: 'var(--status-vencido-bg)', color: 'var(--status-vencido)' }}>{userTotals.vencido} Vencidas</span>
-                        <span className="metric-badge status-por-vencer" style={{ backgroundColor: 'var(--status-por-vencer-bg)', color: 'var(--status-por-vencer)' }}>{userTotals.porVencer} Por Vencer</span>
-                        <span className="metric-badge status-vigente" style={{ backgroundColor: 'var(--status-vigente-bg)', color: 'var(--status-vigente)' }}>{userTotals.vigente} Vigentes</span>
+                        {statusFilter === 'Pendientes' ? (
+                            <>
+                                <span className="metric-badge status-vencido" style={{ backgroundColor: 'var(--status-vencido-bg)', color: 'var(--status-vencido)' }}>{userTotals.vencido} Vencidas</span>
+                                <span className="metric-badge status-por-vencer" style={{ backgroundColor: 'var(--status-por-vencer-bg)', color: 'var(--status-por-vencer)' }}>{userTotals.porVencer} Por Vencer</span>
+                                <span className="metric-badge status-vigente" style={{ backgroundColor: 'var(--status-vigente-bg)', color: 'var(--status-vigente)' }}>{userTotals.vigente} Vigentes</span>
+                            </>
+                        ) : (
+                            <span className="metric-badge status-ejecutado" style={{ backgroundColor: 'var(--status-ejecutado)', color: 'white' }}>{userTotals.ejecutado} Finalizadas</span>
+                        )}
                     </div>
                 </div>
             );
@@ -156,29 +177,38 @@ export default function TaskTable({ currentUser, allTasks, visibleTasks, fetchTa
         contentToRender = (
             <div className="global-summary-container">
                 {Object.keys(grouped).length === 0 ? (
-                    <div className="empty-state">No hay tareas pendientes en el sistema.</div>
+                    <div className="empty-state">No hay tareas empresariales de tipo {statusFilter.toLowerCase()} en el sistema.</div>
                 ) : (
                     <>
                         {summaryNodes}
                         <div className="grand-total-summary">
-                            <h3>Resumen General de la Empresa</h3>
+                            <h3>Resumen General de la Empresa ({statusFilter})</h3>
                             <div className="grand-metrics">
-                                <div className="metric-box box-vencido">
-                                    <span className="metric-number">{globalGrandTotals.vencido}</span>
-                                    <span className="metric-label">Vencidas</span>
-                                </div>
-                                <div className="metric-box box-por-vencer">
-                                    <span className="metric-number">{globalGrandTotals.porVencer}</span>
-                                    <span className="metric-label">Por Vencer</span>
-                                </div>
-                                <div className="metric-box box-vigente">
-                                    <span className="metric-number">{globalGrandTotals.vigente}</span>
-                                    <span className="metric-label">Vigentes</span>
-                                </div>
-                                <div className="metric-box box-total">
-                                    <span className="metric-number">{globalGrandTotals.vencido + globalGrandTotals.porVencer + globalGrandTotals.vigente}</span>
-                                    <span className="metric-label">Total Pendientes</span>
-                                </div>
+                                {statusFilter === 'Pendientes' ? (
+                                    <>
+                                        <div className="metric-box box-vencido">
+                                            <span className="metric-number">{globalGrandTotals.vencido}</span>
+                                            <span className="metric-label">Vencidas</span>
+                                        </div>
+                                        <div className="metric-box box-por-vencer">
+                                            <span className="metric-number">{globalGrandTotals.porVencer}</span>
+                                            <span className="metric-label">Por Vencer</span>
+                                        </div>
+                                        <div className="metric-box box-vigente">
+                                            <span className="metric-number">{globalGrandTotals.vigente}</span>
+                                            <span className="metric-label">Vigentes</span>
+                                        </div>
+                                        <div className="metric-box box-total">
+                                            <span className="metric-number">{globalGrandTotals.vencido + globalGrandTotals.porVencer + globalGrandTotals.vigente}</span>
+                                            <span className="metric-label">Total Pendientes</span>
+                                        </div>
+                                    </>
+                                ) : (
+                                    <div className="metric-box box-total" style={{ backgroundColor: 'var(--status-ejecutado)', borderColor: 'var(--status-ejecutado)' }}>
+                                        <span className="metric-number">{globalGrandTotals.ejecutado}</span>
+                                        <span className="metric-label">Total Ejecutadas</span>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </>
@@ -189,8 +219,8 @@ export default function TaskTable({ currentUser, allTasks, visibleTasks, fetchTa
     } else {
         // --- NORMAL VIEW ---
         const filteredTasks = (visibleTasks || []).filter(task => {
-            if (filterState === 'Pendientes') return !task.ejecutado;
-            if (filterState === 'Ejecutados') return task.ejecutado;
+            if (statusFilter === 'Pendientes') return !task.ejecutado;
+            if (statusFilter === 'Ejecutados') return task.ejecutado;
             return true;
         });
 
@@ -211,7 +241,7 @@ export default function TaskTable({ currentUser, allTasks, visibleTasks, fetchTa
                     <tbody>
                         {filteredTasks.length === 0 ? (
                             <tr>
-                                <td colSpan="7" className="empty-state">No hay tareas de tipo {filterState.toLowerCase()} visibles.</td>
+                                <td colSpan="7" className="empty-state">No hay tareas de tipo {statusFilter.toLowerCase()} visibles.</td>
                             </tr>
                         ) : (
                             filteredTasks.map(task => {
@@ -268,38 +298,53 @@ export default function TaskTable({ currentUser, allTasks, visibleTasks, fetchTa
 
     return (
         <div className="card table-card">
-            <div className="table-header">
-                <h3>Lista de Tareas</h3>
-                <div className="table-filters" style={{ display: 'flex', gap: '8px' }}>
-                    <button 
-                        className={`btn ${filterState === 'Pendientes' ? 'btn-primary' : 'btn-secondary'}`}
-                        onClick={() => setFilterState('Pendientes')}
-                    >
-                        Pendientes
-                    </button>
-                    <button 
-                        className={`btn ${filterState === 'Ejecutados' ? 'btn-primary' : 'btn-secondary'}`}
-                        onClick={() => setFilterState('Ejecutados')}
-                    >
-                        Ejecutados
-                    </button>
+            <div className="table-header" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '1rem', paddingBottom: '1rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                    <h3>Lista de Tareas</h3>
                     {isDcarreon && (
-                        <button 
-                            className={`btn ${filterState === 'Resumen Global' ? 'btn-primary' : 'btn-secondary'}`}
-                            onClick={() => setFilterState('Resumen Global')}
-                            style={{ display: 'flex', alignItems: 'center', gap: '4px' }}
-                        >
-                            <BarChart3 size={16} /> Resumen Global
-                        </button>
+                        <div className="view-mode-toggles" style={{ display: 'flex', gap: '4px', background: 'var(--bg-gray)', padding: '4px', borderRadius: 'var(--radius-md)' }}>
+                            <button
+                                className={`btn ${viewMode === 'Personal' ? 'btn-primary' : 'btn-ghost'}`}
+                                onClick={() => { setViewMode('Personal'); setStatusFilter('Pendientes'); }}
+                                style={{ padding: '0.4rem 1rem', display: 'flex', alignItems: 'center', gap: '4px', backgroundColor: viewMode === 'Personal' ? 'var(--primary-color)' : 'transparent', color: viewMode === 'Personal' ? 'white' : 'var(--text-secondary)', border: 'none' }}
+                            >
+                                <CheckCircle2 size={16} /> Mis Tareas
+                            </button>
+                            <button
+                                className={`btn ${viewMode === 'Global' ? 'btn-primary' : 'btn-ghost'}`}
+                                onClick={() => { setViewMode('Global'); setStatusFilter('Pendientes'); }}
+                                style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '0.4rem 1rem', backgroundColor: viewMode === 'Global' ? 'var(--primary-color)' : 'transparent', color: viewMode === 'Global' ? 'white' : 'var(--text-secondary)', border: 'none' }}
+                            >
+                                <BarChart3 size={16} /> Resumen Global
+                            </button>
+                        </div>
                     )}
                 </div>
-                {filterState !== 'Resumen Global' && (
-                    <span className="task-count">{(visibleTasks || []).filter(task => {
-                        if (filterState === 'Pendientes') return !task.ejecutado;
-                        if (filterState === 'Ejecutados') return task.ejecutado;
-                        return true;
-                    }).length} visible(s)</span>
-                )}
+
+                <div className="table-filters" style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                        <button 
+                            className={`btn ${statusFilter === 'Pendientes' ? 'btn-primary' : 'btn-secondary'}`}
+                            onClick={() => setStatusFilter('Pendientes')}
+                        >
+                            Pendientes
+                        </button>
+                        <button 
+                            className={`btn ${statusFilter === 'Ejecutados' ? 'btn-primary' : 'btn-secondary'}`}
+                            onClick={() => setStatusFilter('Ejecutados')}
+                        >
+                            Ejecutados
+                        </button>
+                    </div>
+
+                    {viewMode === 'Personal' && (
+                        <span className="task-count">{(visibleTasks || []).filter(task => {
+                            if (statusFilter === 'Pendientes') return !task.ejecutado;
+                            if (statusFilter === 'Ejecutados') return task.ejecutado;
+                            return true;
+                        }).length} visible(s)</span>
+                    )}
+                </div>
             </div>
 
             {contentToRender}
