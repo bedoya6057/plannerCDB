@@ -71,11 +71,11 @@ export default function TaskTable({ currentUser, allTasks, visibleTasks, fetchTa
         }
     };
 
-    const isDcarreon = currentUser?.email === 'dcarreon@cdb.com';
+    const isJefatura = currentUser?.rol === 'Jefaturas' || currentUser?.email === 'dcarreon@cdb.com';
 
     let contentToRender;
 
-    if (viewMode === 'Global' && isDcarreon) {
+    if (viewMode === 'Global' && isJefatura) {
         // --- GLOBAL SUMMARY VIEW ---
         
         // 1. Get tasks matching statusFilter
@@ -301,7 +301,7 @@ export default function TaskTable({ currentUser, allTasks, visibleTasks, fetchTa
             <div className="table-header" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '1rem', paddingBottom: '1rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
                     <h3>Lista de Tareas</h3>
-                    {isDcarreon && (
+                    {isJefatura && (
                         <div className="view-mode-toggles" style={{ display: 'flex', gap: '4px', background: 'var(--bg-gray)', padding: '4px', borderRadius: 'var(--radius-md)' }}>
                             <button
                                 className={`btn ${viewMode === 'Personal' ? 'btn-primary' : 'btn-ghost'}`}
