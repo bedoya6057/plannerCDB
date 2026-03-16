@@ -85,12 +85,6 @@ function App() {
     // Si yo creé la tarea (para mí mismo o para otros), la veo
     if (task.creadorNombre === currentUser.nombre) return true;
 
-    // Si alguien se asignó la tarea a sí mismo (tarea privada) y yo no soy esa persona, no la veo
-    if (task.asignadoA === task.creadorNombre) return false;
-
-    // Compatibilidad retroactiva: si está asignada a mi rol general
-    if (task.asignadoA === currentUser.rol) return true;
-
     return false;
   });
 
