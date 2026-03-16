@@ -1,8 +1,28 @@
 import React, { useState } from 'react';
-import { CheckCircle2, Circle, Clock } from 'lucide-react';
+import { CheckCircle2, Circle, Clock, BarChart3 } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 
-export default function TaskTable({ visibleTasks, fetchTasks }) {
+export const getVigenciaStatus = (fechaLimite) => {
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0); // Reset time to midnight for accurate day comparison
+    
+    // Parse the YYYY-MM-DD string to a Date object safely using local time
+    const [year, month, day] = fechaLimite.split('-');
+    const limite = new Date(year, month - 1, day);
+    
+    const diffTime = limite.getTime() - hoy.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays < 0) {
+        return { text: 'Vencido', className: 'status-vencido' };
+    } else if (diffDays <= 1) { // Today (0) or Tomorrow (1)
+        return { text: 'Por vencer', className: 'status-por-vencer' };
+    } else {
+        return { text: 'Vigente', className: 'status-vigente' };
+    }
+};
+
+export default function TaskTable({ currentUser, allTasks, visibleTasks, fetchTasks }) {
     const [loadingIds, setLoadingIds] = useState(new Set());
     const [filterState, setFilterState] = useState('Pendientes'); // 'Pendientes' or 'Ejecutados'
 
@@ -50,53 +70,131 @@ export default function TaskTable({ visibleTasks, fetchTasks }) {
         }
     };
 
-    const getVigenciaStatus = (fechaLimite) => {
-        const hoy = new Date();
-        hoy.setHours(0, 0, 0, 0); // Reset time to midnight for accurate day comparison
+    const isDcarreon = currentUser?.email === 'dcarreon@cdb.com';
+
+    let contentToRender;
+
+    if (filterState === 'Resumen Global' && isDcarreon) {
+        // --- GLOBAL SUMMARY VIEW ---
         
-        // Parse the YYYY-MM-DD string to a Date object safely using local time
-        const [year, month, day] = fechaLimite.split('-');
-        const limite = new Date(year, month - 1, day);
+        // 1. Get all pending tasks
+        const pendingTasks = (allTasks || []).filter(task => !task.ejecutado);
+
+        // 2. Group by asignadoA
+        const grouped = pendingTasks.reduce((acc, task) => {
+            const assignee = task.asignadoA || 'Sin Asignar';
+            if (!acc[assignee]) acc[assignee] = [];
+            acc[assignee].push(task);
+            return acc;
+        }, {});
+
+        // 3. Render grouped tasks
+        let globalGrandTotals = { vencido: 0, porVencer: 0, vigente: 0 };
         
-        const diffTime = limite.getTime() - hoy.getTime();
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        const summaryNodes = Object.keys(grouped).sort().map(assignee => {
+            const tasksUser = grouped[assignee];
+            let userTotals = { vencido: 0, porVencer: 0, vigente: 0 };
 
-        if (diffDays < 0) {
-            return { text: 'Vencido', className: 'status-vencido' };
-        } else if (diffDays <= 1) { // Today (0) or Tomorrow (1)
-            return { text: 'Por vencer', className: 'status-por-vencer' };
-        } else {
-            return { text: 'Vigente', className: 'status-vigente' };
-        }
-    };
+            const taskRows = tasksUser.map(task => {
+                const vigenciaInfo = getVigenciaStatus(task.fechaLimite);
+                if (vigenciaInfo.text === 'Vencido') userTotals.vencido++;
+                else if (vigenciaInfo.text === 'Por vencer') userTotals.porVencer++;
+                else userTotals.vigente++;
 
-    const filteredTasks = visibleTasks.filter(task => {
-        if (filterState === 'Pendientes') return !task.ejecutado;
-        if (filterState === 'Ejecutados') return task.ejecutado;
-        return true;
-    });
+                return (
+                    <tr key={task.id} className="row-resumen" style={{ opacity: loadingIds.has(task.id) ? 0.5 : 1 }}>
+                        <td className="col-vigencia">
+                            <span className={`status-badge ${vigenciaInfo.className}`} style={{ backgroundColor: `var(--${vigenciaInfo.className}-bg)`, color: `var(--${vigenciaInfo.className})` }}>
+                                {vigenciaInfo.text === 'Vencido' ? <Clock size={12} className="icon-mr" /> : null}
+                                {vigenciaInfo.text}
+                            </span>
+                        </td>
+                        <td className="col-tarea">{task.tarea}</td>
+                        <td className="col-date">{task.fechaLimite}</td>
+                        <td className="col-estado">
+                            <span className="status-badge">{task.estado}</span>
+                        </td>
+                        <td className="col-creador">{task.creadorNombre}</td>
+                    </tr>
+                );
+            });
 
-    return (
-        <div className="card table-card">
-            <div className="table-header">
-                <h3>Lista de Tareas</h3>
-                <div className="table-filters" style={{ display: 'flex', gap: '8px' }}>
-                    <button 
-                        className={`btn ${filterState === 'Pendientes' ? 'btn-primary' : 'btn-secondary'}`}
-                        onClick={() => setFilterState('Pendientes')}
-                    >
-                        Pendientes
-                    </button>
-                    <button 
-                        className={`btn ${filterState === 'Ejecutados' ? 'btn-primary' : 'btn-secondary'}`}
-                        onClick={() => setFilterState('Ejecutados')}
-                    >
-                        Ejecutados
-                    </button>
+            // Add to grand global totals
+            globalGrandTotals.vencido += userTotals.vencido;
+            globalGrandTotals.porVencer += userTotals.porVencer;
+            globalGrandTotals.vigente += userTotals.vigente;
+
+            return (
+                <div key={assignee} className="user-summary-group">
+                    <h4 className="user-summary-header">Tareas de {assignee}</h4>
+                    <div className="table-responsive">
+                        <table className="task-table summary-table">
+                            <thead>
+                                <tr>
+                                    <th>Vigencia</th>
+                                    <th>Tarea</th>
+                                    <th>Fecha Límite</th>
+                                    <th>Estado</th>
+                                    <th>Creado por</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {taskRows}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div className="user-summary-metrics">
+                        <strong>Resumen del Usuario:</strong>
+                        <span className="metric-badge status-vencido" style={{ backgroundColor: 'var(--status-vencido-bg)', color: 'var(--status-vencido)' }}>{userTotals.vencido} Vencidas</span>
+                        <span className="metric-badge status-por-vencer" style={{ backgroundColor: 'var(--status-por-vencer-bg)', color: 'var(--status-por-vencer)' }}>{userTotals.porVencer} Por Vencer</span>
+                        <span className="metric-badge status-vigente" style={{ backgroundColor: 'var(--status-vigente-bg)', color: 'var(--status-vigente)' }}>{userTotals.vigente} Vigentes</span>
+                    </div>
                 </div>
-                <span className="task-count">{filteredTasks.length} visible(s)</span>
-            </div>
+            );
+        });
 
+        contentToRender = (
+            <div className="global-summary-container">
+                {Object.keys(grouped).length === 0 ? (
+                    <div className="empty-state">No hay tareas pendientes en el sistema.</div>
+                ) : (
+                    <>
+                        {summaryNodes}
+                        <div className="grand-total-summary">
+                            <h3>Resumen General de la Empresa</h3>
+                            <div className="grand-metrics">
+                                <div className="metric-box box-vencido">
+                                    <span className="metric-number">{globalGrandTotals.vencido}</span>
+                                    <span className="metric-label">Vencidas</span>
+                                </div>
+                                <div className="metric-box box-por-vencer">
+                                    <span className="metric-number">{globalGrandTotals.porVencer}</span>
+                                    <span className="metric-label">Por Vencer</span>
+                                </div>
+                                <div className="metric-box box-vigente">
+                                    <span className="metric-number">{globalGrandTotals.vigente}</span>
+                                    <span className="metric-label">Vigentes</span>
+                                </div>
+                                <div className="metric-box box-total">
+                                    <span className="metric-number">{globalGrandTotals.vencido + globalGrandTotals.porVencer + globalGrandTotals.vigente}</span>
+                                    <span className="metric-label">Total Pendientes</span>
+                                </div>
+                            </div>
+                        </div>
+                    </>
+                )}
+            </div>
+        );
+
+    } else {
+        // --- NORMAL VIEW ---
+        const filteredTasks = (visibleTasks || []).filter(task => {
+            if (filterState === 'Pendientes') return !task.ejecutado;
+            if (filterState === 'Ejecutados') return task.ejecutado;
+            return true;
+        });
+
+        contentToRender = (
             <div className="table-responsive">
                 <table className="task-table">
                     <thead>
@@ -165,6 +263,46 @@ export default function TaskTable({ visibleTasks, fetchTasks }) {
                     </tbody>
                 </table>
             </div>
+        );
+    }
+
+    return (
+        <div className="card table-card">
+            <div className="table-header">
+                <h3>Lista de Tareas</h3>
+                <div className="table-filters" style={{ display: 'flex', gap: '8px' }}>
+                    <button 
+                        className={`btn ${filterState === 'Pendientes' ? 'btn-primary' : 'btn-secondary'}`}
+                        onClick={() => setFilterState('Pendientes')}
+                    >
+                        Pendientes
+                    </button>
+                    <button 
+                        className={`btn ${filterState === 'Ejecutados' ? 'btn-primary' : 'btn-secondary'}`}
+                        onClick={() => setFilterState('Ejecutados')}
+                    >
+                        Ejecutados
+                    </button>
+                    {isDcarreon && (
+                        <button 
+                            className={`btn ${filterState === 'Resumen Global' ? 'btn-primary' : 'btn-secondary'}`}
+                            onClick={() => setFilterState('Resumen Global')}
+                            style={{ display: 'flex', alignItems: 'center', gap: '4px' }}
+                        >
+                            <BarChart3 size={16} /> Resumen Global
+                        </button>
+                    )}
+                </div>
+                {filterState !== 'Resumen Global' && (
+                    <span className="task-count">{(visibleTasks || []).filter(task => {
+                        if (filterState === 'Pendientes') return !task.ejecutado;
+                        if (filterState === 'Ejecutados') return task.ejecutado;
+                        return true;
+                    }).length} visible(s)</span>
+                )}
+            </div>
+
+            {contentToRender}
         </div>
     );
 }

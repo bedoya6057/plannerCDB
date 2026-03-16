@@ -109,7 +109,12 @@ function App() {
             <TaskForm currentUser={currentUser} fetchTasks={fetchTasks} />
           </div>
           <div className="table-column">
-            <TaskTable visibleTasks={visibleTasks} fetchTasks={fetchTasks} />
+            <TaskTable 
+              currentUser={currentUser} 
+              allTasks={tasks} 
+              visibleTasks={visibleTasks} 
+              fetchTasks={fetchTasks} 
+            />
           </div>
         </div>
 
