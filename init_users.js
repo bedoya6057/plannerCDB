@@ -27,13 +27,15 @@ async function runSQL() {
     await client.query(createUsuariosTable);
 
     // Clear existing to avoid unique constraint errors if re-run
-    await client.query(`DELETE FROM usuarios WHERE email IN ('Lchu@cbd.com', 'Dcarreon@cdb.com', 'Mbravo@cdb.com', 'lchu@cdb.com', 'dcarreon@cdb.com', 'mbravo@cdb.com');`);
+    await client.query(`DELETE FROM usuarios WHERE email IN ('Lchu@cbd.com', 'Dcarreon@cdb.com', 'Mbravo@cdb.com', 'lchu@cdb.com', 'dcarreon@cdb.com', 'mbravo@cdb.com', 'prutte@cdb.com', 'dzecevic@cdb.com');`);
 
     const insertUsers = `
       INSERT INTO usuarios (nombre, email, password, rol) VALUES
       ('Luis Eduardo Chu', 'lchu@cdb.com', 'lchucdb', 'Jefaturas'),
       ('Daniela Carreon', 'dcarreon@cdb.com', 'dcarreoncdb', 'Jefaturas'),
-      ('Marco Bravo', 'mbravo@cdb.com', 'mbravocdb', 'Administrativos');
+      ('Marco Bravo', 'mbravo@cdb.com', 'mbravocdb', 'Administrativos'),
+      ('Prutte', 'prutte@cdb.com', 'prutte', 'Administrativos'),
+      ('Dzecevic', 'dzecevic@cdb.com', 'dzecevic', 'Jefaturas');
     `;
 
     console.log('Inserting predefined users...');
