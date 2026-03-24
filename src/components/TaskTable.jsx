@@ -80,6 +80,7 @@ export default function TaskTable({ currentUser, allTasks, visibleTasks, fetchTa
         
         // 1. Get tasks matching statusFilter
         const filteredGlobalTasks = (allTasks || []).filter(task => {
+            if (task.asignadoA === currentUser?.nombre) return false; // Exclude tasks assigned to current user
             if (statusFilter === 'Pendientes') return !task.ejecutado;
             if (statusFilter === 'Ejecutados') return task.ejecutado;
             return true;
@@ -218,7 +219,12 @@ export default function TaskTable({ currentUser, allTasks, visibleTasks, fetchTa
 
     } else {
         // --- NORMAL VIEW ---
-        const filteredTasks = (visibleTasks || []).filter(task => {
+        let baseTasks = visibleTasks || [];
+        if (isJefatura) {
+            baseTasks = baseTasks.filter(task => task.asignadoA === currentUser?.nombre);
+        }
+
+        const filteredTasks = baseTasks.filter(task => {
             if (statusFilter === 'Pendientes') return !task.ejecutado;
             if (statusFilter === 'Ejecutados') return task.ejecutado;
             return true;
@@ -338,7 +344,7 @@ export default function TaskTable({ currentUser, allTasks, visibleTasks, fetchTa
                     </div>
 
                     {viewMode === 'Personal' && (
-                        <span className="task-count">{(visibleTasks || []).filter(task => {
+                        <span className="task-count">{((isJefatura ? (visibleTasks || []).filter(task => task.asignadoA === currentUser?.nombre) : (visibleTasks || []))).filter(task => {
                             if (statusFilter === 'Pendientes') return !task.ejecutado;
                             if (statusFilter === 'Ejecutados') return task.ejecutado;
                             return true;
