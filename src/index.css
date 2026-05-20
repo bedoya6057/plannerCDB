@@ -718,3 +718,70 @@ textarea:focus {
   text-align: center;
   border: 1px solid rgba(220, 38, 38, 0.2);
 }
+
+/* Premium Client Dashboard & Admin Panel Styles */
+.project-card {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  box-shadow: var(--shadow-sm);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.project-card:hover {
+  transform: translateY(-4px) scale(1.01);
+  box-shadow: var(--shadow-lg) !important;
+  border-color: var(--primary) !important;
+}
+
+.admin-tabs button {
+  transition: all 0.2s ease-in-out;
+}
+
+.admin-tabs button:hover {
+  background-color: rgba(18, 94, 138, 0.08);
+  color: var(--primary) !important;
+}
+
+.admin-tabs button.btn-primary:hover {
+  background-color: var(--primary-hover);
+  color: white !important;
+}
+
+/* Dynamic badges and connections */
+.badge-vencido {
+  background-color: var(--status-vencido-bg);
+  color: var(--status-vencido);
+}
+
+.badge-por-vencer {
+  background-color: var(--status-por-vencer-bg);
+  color: var(--status-por-vencer);
+}
+
+.badge-vigente {
+  background-color: var(--status-vigente-bg);
+  color: var(--status-vigente);
+}
+
+.view-selector-tabs button {
+  transition: all 0.2s ease;
+}
+
+.view-selector-tabs button:not(.active):hover {
+  color: var(--primary) !important;
+  background-color: rgba(18, 94, 138, 0.05) !important;
+}
+
+@keyframes pulse-soft {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+.animate-pulse-soft {
+  animation: pulse-soft 2s infinite ease-in-out;
+}
